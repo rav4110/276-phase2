@@ -1,6 +1,6 @@
 from countryinfo import CountryInfo
 
-from src.country import Country, get_country, get_random_country, map_to_country_obj
+from phase2.country import Country, get_country, get_random_country, map_to_country_obj
 
 
 def test_map_to_country_obj():
