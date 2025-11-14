@@ -1,28 +1,41 @@
-from country import Country, get_country, get_random_country
+import datetime
+import random
 
+from phase2.country import Country, get_country, get_random_country
+
+MAX_GUESSES = 5
+guesses = 0
+# TODO: change from global variable guesses
 
 def get_daily_country() -> Country:
     """
     Gets a country for today's date, deterministically
     """
-    country = get_random_country()
-    return country
+    today_str = datetime.date.today().isoformat()
+    random.seed(today_str) # seed random with date (every daily country is the same)
+    return get_random_country()
 
 
 def handle_guess(input: str) -> bool:
     """
+    Assumes input str is a valid country string
+
     Processes the given input, returning True if the guess was valid
     or False otherwise. Ends the game if either end condition is reached
     (reached max guesses or guessed correctly)
     """
+    global guesses
+    guesses += 1
     country = get_country(input)
-
-    if not country:
+    daily_country = get_daily_country()
+    if compare_countries(country, daily_country):
+        end_game(True)
+        return True
+    elif guesses >= MAX_GUESSES:
+        end_game(False)
         return False
-
-    # hand country off to other gameplay functions
-
-    pass
+    else: # continue game
+        return False
 
 
 def compare_countries(guess: Country, answer: Country):
