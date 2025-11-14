@@ -2,7 +2,7 @@ import random
 from datetime import date, timedelta
 
 from phase2.country import Country, get_country, get_random_country
-from phase2.statistics import RoundStatistics
+from phase2.statistics import RoundStatistics, RoundStatisticsRepository
 
 MAX_GUESSES = 5
 guesses = 0
@@ -65,7 +65,7 @@ def end_game(won: bool, mode: str = "daily"):
 
     # TODO: Get this round's stats properly
     round_time: timedelta = timedelta()
-    round_guesses: int = 0
+    round_guesses: int = guesses
 
     round_stats = RoundStatistics(
         time_to_complete=round_time, won=won, guesses=round_guesses, mode=mode
@@ -73,7 +73,11 @@ def end_game(won: bool, mode: str = "daily"):
 
     if mode == "daily":
         round_stats.daily_date = date.today()
+    # TODO (milestone 3): Add in the number of survival rounds completed
 
-    # TODO: Add round to the rounds database
+    # TODO (milestone 2): Add round to the rounds database
+    round_statistics_repo = RoundStatisticsRepository()
+    round_statistics_repo.add_round(round_stats)
 
     # TODO: Show game stats in UI
+    # content.game_ended.emit(won)
