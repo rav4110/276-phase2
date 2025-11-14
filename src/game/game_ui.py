@@ -1,7 +1,9 @@
 import json
+from datetime import datetime
 
-import daily
 from nicegui import Event, ui
+
+from game.daily import handle_guess
 
 # NiceGUI elements go here
 
@@ -23,22 +25,27 @@ game_ended = Event[bool]()
 
 def try_guess(guess_input, feedback):
     if guess_input.validate():
-        daily.handle_guess(guess_input.value)
+        handle_guess(guess_input.value)
         guess_input.clear()
 
 
 @game_ended.subscribe
 def display_results(won: bool):
+    # TODO: Add pop-up that will display whether you won or lost,
+    # your # of guesses and time, and (in future) the leaderboard info
     pass
 
 
-@ui.page("/")
-def index():
+def content():
     options = []
     with open("src/game/countries.json") as file:
         options = json.load(file)
 
     with ui.column(align_items="center").classes("mx-auto w-full max-w-md p-4"):
+        timer = ui.label()
+        # TODO: Replace with actual game timer, not just current time
+        ui.timer(1.0, lambda: timer.set_text(f"{datetime.now():%X}"))
+
         columns = [
             {"name": "name", "label": "Name"},
             {"name": "population", "label": "Population"},
@@ -79,5 +86,3 @@ account management
     - edit account info (username/password/email)
     - friends/friend requests
 """
-
-ui.run(title="CMPT276 Project", dark=None)
