@@ -1,33 +1,8 @@
 import random
-from datetime import date, datetime, timedelta, timezone
-
-from nicegui import Event
+from datetime import date
 
 from phase2.country import Country, get_country, get_random_country
-
-MAX_GUESSES = 5
-
-
-class RoundStats:
-    guesses: int = 0
-    max_guesses: int
-    round_start: datetime
-    guess_graded: Event[str]
-    game_ended: Event[bool]
-    round_time: timedelta
-
-    def __init__(self):
-        self.guesses = 0
-        self.max_guesses = MAX_GUESSES
-        self.round_start = datetime.now(timezone.utc)
-
-        # TODO: Replace with data type containing actual guess feedback
-        self.guess_graded = Event[str]()
-        self.game_ended = Event[bool]()
-        self.round_time = timedelta()
-
-    def end_round(self):
-        self.round_time = datetime.now(timezone.utc) - self.round_start
+from phase2.round import MAX_GUESSES, Comparison, GuessFeedback, RoundStats
 
 
 def get_daily_country() -> Country:
@@ -50,15 +25,27 @@ def handle_guess(input: str, round_stats: RoundStats):
     country = get_country(input)
     daily_country = get_daily_country()
 
-    if compare_countries(country, daily_country):
+    feedback: GuessFeedback = compare_countries(country, daily_country)
+
+    # TODO: Remove placeholder feedback
+    feedback = GuessFeedback(
+        name=0,
+        population=Comparison.LESS_THAN,
+        size=Comparison.LESS_THAN,
+        currencies=Comparison.PARTIAL_OVERLAP,
+        languages=Comparison.NO_OVERLAP,
+        timezones=Comparison.PARTIAL_OVERLAP,
+        region=1,
+    )
+
+    if feedback.name:  # correct guess
         end_game(True, round_stats)
         round_stats.end_round()
-    elif round_stats.guesses >= MAX_GUESSES:
+    elif round_stats.guesses >= MAX_GUESSES:  # too many guesses
         end_game(False, round_stats)
         round_stats.end_round()
 
-    # TODO: Pass the comparison result from compare_countries to this call
-    round_stats.guess_graded.emit(input)
+    round_stats.guess_graded.emit(country, feedback)
 
 
 def compare_countries(guess: Country, answer: Country):

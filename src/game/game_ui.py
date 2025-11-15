@@ -3,7 +3,9 @@ from datetime import datetime, timezone
 
 from nicegui import ui
 
-from game.daily import RoundStats, handle_guess
+from game.daily import get_daily_country, handle_guess
+from phase2.country import Country
+from phase2.round import Comparison, GuessFeedback, RoundStats
 
 # NiceGUI elements go here
 
@@ -19,8 +21,30 @@ game
 """
 
 
+def concat_data(feedback, data) -> str:
+    return str(feedback) + "|" + str(data)
+
+
+def list_to_str(items: list):
+    res = ""
+    for item in items:
+        if item != items[0]:
+            res += ", "
+        res += item
+    return res
+
+
+correct_bg = "bg-green-500 "
+similar_bg = "bg-yellow-500 "
+incorrect_bg = "bg-red-500 "
+
+greater_than_arrow = r"clip-path: polygon(97% 40%,80% 40%,80% 95%,20% 95%,20% 40%,3% 40%,50% 5%)"
+less_than_arrow = r"clip-path: polygon(98% 60%,80% 60%,80% 5%,20% 5%,20% 60%,3% 60%,50% 95%)"
+
+
 def content():
     round_stats = RoundStats()
+    guessed_names = []
 
     options = []
     with open("src/game/countries.json") as file:
@@ -33,9 +57,9 @@ def content():
         """
         if guess.lower() not in options:
             return "Not a valid country!"
-        guessed_names = [d.get("name") for d in feedback.rows]
-        if guess.capitalize() in guessed_names:
+        if guess.lower() in guessed_names:
             return "Already guessed!"
+        guessed_names.append(guess.lower())
         return None
 
     def try_guess():
@@ -48,25 +72,50 @@ def content():
             guess_input.value = ""
 
             # TODO: Move this emit into game_end()
-            if len(feedback.rows) == 6:
-                round_stats.game_ended.emit(False)
+            # round_stats.game_ended.emit(False)
 
     # TODO: Add actual feedback instead of placeholder data
     @round_stats.guess_graded.subscribe
-    def display_feedback(guess: str):
+    def display_feedback(country: Country, feedback: GuessFeedback):
         """
-        Displays the feedback passed as an argument in the feedback table
+        Displays the feedback passed as an argument
         """
-        row = {
-            "name": guess.capitalize(),
-            "population": "25",
-            "size": "like 2",
-            "region": "Azerbaijan",
-            "languages": "Evil French, Polish",
-            "currencies": "Doubloons",
-            "timezones": "UTC, PST, ETC",
-        }
-        feedback.add_row(row)
+
+        with guesses:
+            for attr, value in vars(feedback).items():
+                classes = "aspect-square h-24 justify-center text-center "
+                match value:
+                    case Comparison.GREATER_THAN:
+                        classes += similar_bg
+                    case Comparison.LESS_THAN:
+                        classes += similar_bg
+                    case Comparison.NO_OVERLAP:
+                        classes += incorrect_bg
+                    case Comparison.PARTIAL_OVERLAP:
+                        classes += similar_bg
+                    case 1:
+                        classes += correct_bg
+                    case 0:
+                        classes += incorrect_bg
+                with ui.card(align_items="center").classes(classes):
+                    ui.element("div").classes("absolute inset-0 bg-black/40 -z-10").style(
+                        greater_than_arrow
+                    )
+
+                    with ui.row().classes("items-center"):
+                        attr_content = getattr(country, attr)
+                        text = str(attr_content)
+
+                        if attr == "population":
+                            text = format(getattr(country, attr), ",")
+                        elif attr == "currencies":
+                            text = list_to_str(attr_content)
+                        elif attr == "languages":
+                            text = list_to_str(attr_content)
+                        elif attr == "timezones":
+                            text = list_to_str(attr_content)
+
+                        ui.label(text).classes("break-all")
 
     @round_stats.game_ended.subscribe
     def display_results(won: bool):
@@ -74,12 +123,13 @@ def content():
         Displays the game results pop-up
         """
         if won:
-            text = "Congratulaions!"
+            text = "Congratulations!"
         else:
             text = "Too bad!"
 
         with ui.dialog() as dialog, ui.card():
             ui.label(text)
+            ui.label("The correct country was " + get_daily_country().name)
             ui.label(f"Time: {str(round_stats.round_time).split('.')[0]}")
             ui.label(f"Guesses: {round_stats.guesses}")
             ui.button("Close", on_click=dialog.close)
@@ -88,7 +138,7 @@ def content():
 
             dialog.open()
 
-    with ui.column(align_items="center").classes("mx-auto w-full max-w-md p-4"):
+    with ui.column(align_items="center").classes("mx-auto p-4"):
         timer = ui.label().mark("timer")
         ui.timer(
             1.0,
@@ -97,20 +147,9 @@ def content():
             ),
         )
 
-        columns = [
-            {"name": "name", "label": "Name", "field": "name"},
-            {"name": "population", "label": "Population", "field": "population"},
-            {"name": "size", "label": "Size", "field": "size"},
-            {"name": "region", "label": "Region", "field": "region"},
-            {"name": "languages", "label": "Languages", "field": "languages"},
-            {"name": "currencies", "label": "Currencies", "field": "currencies"},
-            {"name": "timezones", "label": "Timezones", "field": "timezones"},
-        ]
-        rows = []
-        # TODO: Style table
-        feedback = ui.table(
-            rows=rows, columns=columns, column_defaults={"align": "center"}, row_key="name"
-        )
+        guesses = ui.grid(columns=7).classes("w-full")
+        with guesses:
+            pass
 
         with ui.card(align_items="center"):
             guess_input = (
