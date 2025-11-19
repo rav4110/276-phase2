@@ -44,7 +44,6 @@ less_than_arrow = r"clip-path: polygon(98% 60%,80% 60%,80% 5%,20% 5%,20% 60%,3% 
 
 def content():
     round_stats = RoundStats(mode="daily")
-    guessed_names = []
 
     options = []
     with open("src/game/countries.json") as file:
@@ -64,9 +63,8 @@ def content():
         """
         if guess.lower() not in options:
             return "Not a valid country!"
-        if guess.lower() in guessed_names:
+        if guess.lower() in round_stats.guessed_names:
             return "Already guessed!"
-        guessed_names.append(guess.lower())
         return None
 
     def try_guess():
@@ -75,6 +73,9 @@ def content():
         if it's valid.
         """
         if guess_input.validate():
+            if not round_stats.start_time:
+                round_stats.start_round()
+
             handle_guess(guess_input.value, round_stats)
             guess_input.value = ""
 
@@ -112,7 +113,9 @@ def content():
                     attr_content = getattr(country, attr)
                     text = str(attr_content)
                     with ui.scroll_area().classes("r-scroll-area-centered"):
-                        if attr == "population":
+                        if attr == "name":
+                            text = attr_content.capitalize()
+                        elif attr == "population":
                             text = format(attr_content, ",")
                         elif attr == "size":
                             text = format(attr_content, ",")
@@ -125,11 +128,23 @@ def content():
 
                         ui.label(text).classes("break-all")
 
+    @round_stats.guess_error.subscribe
+    def guess_error():
+        """
+        Displays a notification when there is some kind of problem handling
+        a guess.
+        """
+        ui.notify("There was an issue processing that guess. Try something else!")
+
     @round_stats.game_ended.subscribe
     def display_results(won: bool):
         """
         Displays the game results pop-up
         """
+        timer.cancel()
+        guess_input.disable()
+        submit.disable()
+
         if won:
             text = "Congratulations!"
         else:
@@ -138,7 +153,7 @@ def content():
         with ui.dialog() as dialog, ui.card():
             ui.label(text)
             ui.label("The correct country was " + get_daily_country().name)
-            ui.label(f"Time: {str(round_stats.round_time).split('.')[0]}")
+            ui.label(f"Time: {str(round_stats.round_length).split('.')[0]}")
             ui.label(f"Guesses: {round_stats.guesses}")
             ui.button("Close", on_click=dialog.close)
 
@@ -147,17 +162,20 @@ def content():
             dialog.open()
 
     with ui.column(align_items="center").classes("mx-auto p-4"):
-        timer = ui.label().mark("timer")
-        ui.timer(
-            1.0,
-            lambda: timer.set_text(
-                f"{str(datetime.now(timezone.utc) - round_stats.round_start).split('.')[0]}"
-            ),
-        )
+        timer_text = ui.label("0:00:00").mark("timer")
+
+        def update_timer():
+            if not round_stats.start_time:
+                return
+            (
+                timer_text.set_text(
+                    f"{str(datetime.now(timezone.utc) - round_stats.start_time).split('.')[0]}"
+                ),
+            )
+
+        timer = ui.timer(1.0, update_timer)
 
         guesses = ui.grid(columns=7).classes("w-full")
-        with guesses:
-            pass
 
         with ui.card(align_items="center"):
             guess_input = (
@@ -168,9 +186,9 @@ def content():
                     validation=is_guess_valid,
                 )
                 .without_auto_validation()
-                .on("keydown.enter", lambda: try_guess())
+                .on("keydown.enter", try_guess)
             )
-            ui.button("Submit", on_click=lambda: try_guess())
+            submit = ui.button("Submit", on_click=try_guess)
 
 
 # button to display leaderboards

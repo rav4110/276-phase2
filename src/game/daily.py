@@ -21,11 +21,19 @@ def handle_guess(input: str, round_stats: RoundStats):
     Processes the given input. Ends the game if either end condition is reached
     (reached max guesses or guessed correctly)
     """
-    round_stats.guesses += 1
     country = get_country(input)
     daily_country = get_daily_country()
 
-    feedback: GuessFeedback = compare_countries(country, daily_country)
+    # Error handling in case the countryinfo API isn't able to serve
+    # info we need
+    try:
+        feedback: GuessFeedback = compare_countries(country, daily_country)
+    except AttributeError:
+        round_stats.guess_error.emit()
+        return
+
+    round_stats.guessed_names.append(country.name)
+    round_stats.guesses += 1
 
     if feedback.name:  # correct guess
         end_game(True, round_stats)
@@ -54,7 +62,7 @@ def compare_countries(guess: Country, answer: Country) -> GuessFeedback:
     feedback = GuessFeedback()
 
     # Check if countries match (correct guess)
-    feedback.name = guess.name.lower() == answer.name.lower()
+    feedback.name = guess.name == answer.name
 
     # Compare population
     if guess.population and answer.population:

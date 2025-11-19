@@ -36,23 +36,30 @@ class RoundStats:
     playing.
     """
 
-    guesses: int = 0
+    guesses: int
+    guessed_names: [str]
     max_guesses: int
     mode: str
     start_time: datetime
     guess_graded: Event[Country, GuessFeedback]
     game_ended: Event[bool]
+    guess_error: Event
     round_length: timedelta
 
     def __init__(self, mode: str):
         self.guesses = 0
+        self.guessed_names = []
         self.max_guesses = MAX_GUESSES
-        self.start_time = datetime.now(timezone.utc)
         self.mode = mode
+
+        self.start_time = None
 
         self.guess_graded = Event[Country, GuessFeedback]()
         self.game_ended = Event[bool]()
-        self.round_length = timedelta()
+        self.guess_error = Event()
+
+    def start_round(self):
+        self.start_time = datetime.now(timezone.utc)
 
     def end_round(self):
         self.round_length = datetime.now(timezone.utc) - self.start_time
