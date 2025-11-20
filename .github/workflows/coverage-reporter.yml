@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: cov.xml
+          name: pytest-results
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Test Coverage
