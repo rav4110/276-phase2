@@ -9,6 +9,7 @@ from game.daily import get_daily_country
 
 logger = logging.getLogger("phase2")
 
+from game.leaderboard_ui import leaderboard_page
 
 class LogElementHandler(logging.Handler):
     """A logging handler that emits messages to a log element."""
@@ -65,6 +66,13 @@ def index_page():
     ui.keyboard(on_key=handle_key)
 
     game_ui.content()
+
+
+
+@ui.page("/leaderboard")
+def _():
+    leaderboard_page()
+
 
 
 ui.run(title="CMPT276 Project", dark=None)
