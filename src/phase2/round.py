@@ -40,6 +40,7 @@ class RoundStats:
     guessed_names: list[str]
     max_guesses: int
     mode: str
+    user_id: int
     start_time: datetime
     guess_graded: Event[Country, GuessFeedback]
     game_ended: Event[bool]
