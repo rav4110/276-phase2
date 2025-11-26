@@ -1,7 +1,5 @@
-import asyncio
 from datetime import date, timedelta
 
-from fastapi import Depends
 from shared.database import Base, get_db
 from sqlalchemy import select
 from sqlalchemy.orm import Mapped, Session, mapped_column
@@ -51,7 +49,9 @@ class RoundStatisticsRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def add_round(self, round_stats: RoundStats, survival_streak: int = None) -> RoundStatistics:
+    async def add_round(
+        self, round_stats: RoundStats, survival_streak: int = None
+    ) -> RoundStatistics:
         """
         Receives statistics for a round from the game,
         updates the user's stats table accordingly and
@@ -78,7 +78,7 @@ class RoundStatisticsRepository:
 
         lb_repo = Leaderboard(self.session)
         lb_repo.stats_repo = self
-        asyncio.run(lb_repo.sync_user_entry(round_stats.user_id))
+        await lb_repo.sync_user_entry(round_stats.user_id)
 
         self.session.commit()
         return round_row
@@ -160,5 +160,6 @@ class RoundStatisticsRepository:
         )
 
 
-def get_statistics_repository(db: Session = Depends(get_db)) -> RoundStatisticsRepository:
+def get_statistics_repository() -> RoundStatisticsRepository:
+    db = get_db()
     return RoundStatisticsRepository(db)

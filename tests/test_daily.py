@@ -10,6 +10,7 @@ import pytest
 from game.daily import end_game, get_daily_country, handle_guess
 from phase2.country import Country, get_country
 from phase2.round import RoundStats
+from phase2.statistics import RoundStatisticsRepository
 
 
 @pytest.fixture
@@ -36,8 +37,7 @@ def mocked_end_game():
 
 @pytest.fixture
 def mocked_stats_repo():
-    patcher = patch("game.daily.get_statistics_repository")
-    patch.object(RoundStats, "add_round")
+    patcher = patch.object(RoundStatisticsRepository, "add_round")
     mock = patcher.start()
     yield mock
     patcher.stop()
@@ -55,10 +55,10 @@ def test_get_daily_country_same_country_for_same_day():
 # region handle_guess() Tests
 
 
-def test_handle_correct_guess(round_stats, mocked_get_daily_country, mocked_end_game):
+async def test_handle_correct_guess(round_stats, mocked_get_daily_country, mocked_end_game):
     user_guess = "united states"
 
-    handle_guess(user_guess, round_stats)
+    await handle_guess(user_guess, round_stats)
 
     assert round_stats.guesses == 1
     assert round_stats.guessed_names == [user_guess]
@@ -66,10 +66,10 @@ def test_handle_correct_guess(round_stats, mocked_get_daily_country, mocked_end_
     mocked_end_game.assert_called_once()
 
 
-def test_handle_incorrect_guess(round_stats, mocked_get_daily_country, mocked_end_game):
+async def test_handle_incorrect_guess(round_stats, mocked_get_daily_country, mocked_end_game):
     user_guess = "panama"
 
-    handle_guess(user_guess, round_stats)
+    await handle_guess(user_guess, round_stats)
 
     assert round_stats.guesses == 1
     assert round_stats.guessed_names == [user_guess]
@@ -77,12 +77,12 @@ def test_handle_incorrect_guess(round_stats, mocked_get_daily_country, mocked_en
     mocked_end_game.assert_not_called()
 
 
-def test_handle_invalid_guess(round_stats, mocked_get_daily_country, mocked_end_game):
+async def test_handle_invalid_guess(round_stats, mocked_get_daily_country, mocked_end_game):
     user_guess = "wales"
 
     round_stats.guess_error.emit = MagicMock()
 
-    handle_guess(user_guess, round_stats)
+    await handle_guess(user_guess, round_stats)
 
     assert round_stats.guesses == 0, "Errors should not increment guesses!"
     assert round_stats.guessed_names == []
@@ -91,12 +91,12 @@ def test_handle_invalid_guess(round_stats, mocked_get_daily_country, mocked_end_
     round_stats.guess_error.emit.assert_called_once()
 
 
-def test_handle_guess_limit(round_stats, mocked_get_daily_country, mocked_end_game):
+async def test_handle_guess_limit(round_stats, mocked_get_daily_country, mocked_end_game):
     round_stats.guesses = round_stats.max_guesses - 1
 
     user_guess = "india"
 
-    handle_guess(user_guess, round_stats)
+    await handle_guess(user_guess, round_stats)
 
     assert round_stats.guesses == round_stats.max_guesses
     assert round_stats.guessed_names == [user_guess]
@@ -106,21 +106,21 @@ def test_handle_guess_limit(round_stats, mocked_get_daily_country, mocked_end_ga
 
 # endregion
 # region end_game() tests
-def test_win_game(round_stats, mocked_stats_repo):
+async def test_win_game(round_stats, mocked_stats_repo):
     round_stats.game_ended.emit = MagicMock()
     round_stats.end_round = MagicMock()
 
-    end_game(True, round_stats)
+    await end_game(True, round_stats)
 
     round_stats.game_ended.emit.assert_called_once_with(True)
     round_stats.end_round.assert_called_once()
 
 
-def test_lose_game(round_stats, mocked_stats_repo):
+async def test_lose_game(round_stats, mocked_stats_repo):
     round_stats.game_ended.emit = MagicMock()
     round_stats.end_round = MagicMock()
 
-    end_game(False, round_stats)
+    await end_game(False, round_stats)
 
     round_stats.game_ended.emit.assert_called_once_with(False)
     round_stats.end_round.assert_called_once()
