@@ -30,7 +30,11 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
+      
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -38,6 +42,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
+          pip install -e user_service
           pip install --group dev
 
       - name: Run tests and generate coverage report

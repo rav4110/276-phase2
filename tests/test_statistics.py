@@ -1,20 +1,19 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 import pytest
+from shared.database import Base
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from phase2.leaderboard import Base as LeaderboardBase
 from phase2.leaderboard import LeaderboardEntry
-from phase2.statistics import Base as StatsBase
+from phase2.round import RoundStats
 from phase2.statistics import RoundStatistics, RoundStatisticsRepository
 
 
 @pytest.fixture(scope="function")
 def engine():
     engine = create_engine("sqlite:///:memory:?check_same_thread=False")
-    StatsBase.metadata.create_all(bind=engine)
-    LeaderboardBase.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     yield engine
     engine.dispose()
 
@@ -38,18 +37,21 @@ def test_get_nonexistent_stats(repo):
     assert not repo.get_leaderboard_stats_for_user(0)
 
 
-def test_add_round(repo, session):
+async def test_add_round(repo, session):
     user_id = 1
     today = date(2025, 11, 20)
 
-    result = repo.add_round(
-        user_id=user_id,
-        round_length=timedelta(seconds=30),
-        won=True,
-        guesses=4,
-        mode="daily",
-        daily_date=today,
-    )
+    round_stats = RoundStats(mode="daily")
+    round_stats.start_round()
+    round_stats.end_round()
+    round_stats.user_id = user_id
+    round_stats.won = True
+    round_stats.guesses = 4
+    round_stats.start_time = datetime.combine(today, time())
+    round_stats.round_length = timedelta(seconds=30)
+
+    result = await repo.add_round(round_stats)
+
     assert isinstance(result, RoundStatistics)
     assert result.user_id == user_id
     assert result.mode == "daily"
@@ -65,17 +67,18 @@ def test_add_round(repo, session):
     assert entry.average_daily_time == result.round_length
 
 
-def test_get_daily_round(repo, session):
+async def test_get_daily_round(repo, session):
     today = date(2024, 11, 20)
 
-    created = repo.add_round(
-        user_id=1,
-        round_length=timedelta(seconds=75),
-        won=True,
-        guesses=4,
-        mode="daily",
-        daily_date=today,
-    )
+    round_stats = RoundStats(mode="daily")
+    round_stats.start_round()
+    round_stats.end_round()
+    round_stats.user_id = 1
+    round_stats.won = True
+    round_stats.guesses = 4
+    round_stats.start_time = datetime.combine(today, time())
+
+    created = await repo.add_round(round_stats)
     fetched = repo.get_daily_round(user_id=1, day=today)
 
     assert fetched is not None
@@ -84,16 +87,18 @@ def test_get_daily_round(repo, session):
     assert fetched.daily_date == today
 
 
-def test_get_leaderboard_stats_for_user(repo):
+async def test_get_leaderboard_stats_for_user(repo):
     today = date(2024, 11, 20)
-    created = repo.add_round(
-        user_id=1,
-        round_length=timedelta(seconds=75),
-        won=True,
-        guesses=3,
-        mode="daily",
-        daily_date=today,
-    )
+
+    round_stats = RoundStats(mode="daily")
+    round_stats.start_round()
+    round_stats.end_round()
+    round_stats.user_id = 1
+    round_stats.won = True
+    round_stats.guesses = 4
+    round_stats.start_time = datetime.combine(today, time())
+
+    created = await repo.add_round(round_stats)
 
     stats = repo.get_leaderboard_stats_for_user(user_id=1)
 
@@ -104,28 +109,17 @@ def test_get_leaderboard_stats_for_user(repo):
     assert stats.longest_survival_streak == 0
 
     # Test daily streak counting
-    created = repo.add_round(
-        user_id=1,
-        round_length=timedelta(seconds=30),
-        won=True,
-        guesses=3,
-        mode="daily",
-        daily_date=today + timedelta(days=1),
-    )
+    round_stats.daily_date = today + timedelta(days=1)
+    created = await repo.add_round(round_stats)
 
     stats = repo.get_leaderboard_stats_for_user(user_id=1)
 
     assert stats.daily_streak == 2
 
     # Test daily streak breaking
-    created = repo.add_round(
-        user_id=1,
-        round_length=timedelta(seconds=30),
-        won=False,
-        guesses=5,
-        mode="daily",
-        daily_date=today + timedelta(days=1),
-    )
+    round_stats.daily_date = today + timedelta(days=2)
+    round_stats.won = False
+    created = await repo.add_round(round_stats)
 
     stats = repo.get_leaderboard_stats_for_user(user_id=1)
 

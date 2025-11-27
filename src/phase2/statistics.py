@@ -1,13 +1,12 @@
-import asyncio
 from datetime import date, timedelta
 
+from shared.database import Base, get_db
 from sqlalchemy import select
-from sqlalchemy.orm import Mapped, Session, declarative_base, mapped_column
+from sqlalchemy.orm import Mapped, Session, mapped_column
 from sqlalchemy.types import Boolean, Date, Integer, Interval, String
 
 from phase2.leaderboard import Leaderboard
-
-Base = declarative_base()
+from phase2.round import RoundStats
 
 
 class RoundStatistics(Base):
@@ -50,30 +49,27 @@ class RoundStatisticsRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def add_round(
-        self,
-        *,
-        user_id: int,
-        round_length: timedelta,
-        won: bool,
-        guesses: int,
-        mode: str,
-        daily_date: date,
-        survival_streak: int = None,
+    async def add_round(
+        self, round_stats: RoundStats, survival_streak: int = None
     ) -> RoundStatistics:
         """
         Receives statistics for a round from the game,
         updates the user's stats table accordingly and
         returns the RoundStatistics instance
         """
-        if not survival_streak:
+        if round_stats.mode != "survival":
             survival_streak = 0
+
+        daily_date = date(
+            round_stats.start_time.year, round_stats.start_time.month, round_stats.start_time.day
+        )
+
         round_row = RoundStatistics(
-            user_id=user_id,
-            round_length=round_length,
-            won=won,
-            guesses=guesses,
-            mode=mode,
+            user_id=round_stats.user_id,
+            round_length=round_stats.round_length,
+            won=round_stats.won,
+            guesses=round_stats.guesses,
+            mode=round_stats.mode,
             daily_date=daily_date,
             survival_streak=survival_streak,
         )
@@ -82,7 +78,7 @@ class RoundStatisticsRepository:
 
         lb_repo = Leaderboard(self.session)
         lb_repo.stats_repo = self
-        asyncio.run(lb_repo.sync_user_entry(user_id))
+        await lb_repo.sync_user_entry(round_stats.user_id)
 
         self.session.commit()
         return round_row
@@ -162,3 +158,8 @@ class RoundStatisticsRepository:
             longest_survival_streak=longest_survival_streak,
             score=score,
         )
+
+
+def get_statistics_repository() -> RoundStatisticsRepository:
+    db = get_db()
+    return RoundStatisticsRepository(db)

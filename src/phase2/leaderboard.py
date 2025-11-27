@@ -1,11 +1,10 @@
 from datetime import timedelta
 
 from pydantic import BaseModel
+from shared.database import Base
 from sqlalchemy import Integer, Interval, Sequence, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Mapped, Session, declarative_base, mapped_column
-
-Base = declarative_base()
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 
 class LeaderboardEntry(Base):
