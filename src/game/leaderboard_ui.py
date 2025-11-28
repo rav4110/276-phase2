@@ -4,7 +4,7 @@ import httpx  # Will update to getting directly from DB once wired
 from nicegui import ui
 from shared.database import get_db
 
-from phase2.leaderboard import Leaderboard
+from phase2.leaderboard import Leaderboard, get_leaderboard_repository
 
 API_BASE_URL = "http://localhost:8000" 
 
@@ -80,7 +80,7 @@ def fetch_leaderboard() -> List[Dict[str, Any]]:
     return rows
 
 
-def leaderboard_page() -> None:
+async def leaderboard_page() -> None:
     ui.label("Leaderboard").classes("text-3xl font-bold mb-4")
 
     columns = [
@@ -109,16 +109,49 @@ def leaderboard_page() -> None:
     def load_data():
         table.rows = fetch_leaderboard()
 
-    ui.button("Refresh", on_click=load_data).classes("mt-4")
+    async def load_friends_leaderboard():
+        user_id = 1
+        new_rows = await fetch_friends_leaderboard(user_id)
+        print(new_rows)
+        table.rows = new_rows
 
-def fetch_friends_leaderboard(user_id: int):
+    ui.button("Refresh", on_click=load_data).classes("mt-4")
+    ui.button("Load friends leaderboard", on_click=load_friends_leaderboard)
+
+async def fetch_friends_leaderboard(user_id: int | None):
     """Fetch friends-only leaderboard data using Leaderboard class."""
-    db = get_db()
+    print("called")
+    if not user_id:
+        user_id = 1
+
     try:
-        lb = Leaderboard(db)
-        return lb.get_friends_entries(user_id)
-    finally:
-        db.close()
+        lb = get_leaderboard_repository()
+        entries = await lb.get_friends_entries(user_id)
+    except AttributeError:
+        entries = [{
+            "entry_id": 3,
+            "user_id": "Amy",
+            "daily_streak": 10,
+            "longest_daily_streak": 12,
+            "average_daily_guesses": 2,
+            "average_daily_time": "19.7s",
+            "longest_survival_streak": 20,
+                       "high_score": 2005,
+        },
+        {
+            "entry_id": 4,
+            "user_id": "Dave",
+            "daily_streak": 0,
+            "longest_daily_streak": 1,
+            "average_daily_guesses": 5,
+            "average_daily_time": "42.0s",
+            "longest_survival_streak": 4,
+            "high_score": 980,
+        },]
+    
+    return entries
+
+        
 
 if __name__ in {"__main__", "__mp_main__"}:
     leaderboard_page()

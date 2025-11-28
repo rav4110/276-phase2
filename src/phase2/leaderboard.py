@@ -5,7 +5,7 @@ from shared.database import Base
 from sqlalchemy import Integer, Interval, Sequence, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
-
+from shared.database import get_db
 from phase2.friends import Friendship
 
 
@@ -143,11 +143,9 @@ class Leaderboard:
         (including the given user)
         """
 
-        db = self.session
-
         # Get friend IDs 
         stmt = select(Friendship.friend_id).where(Friendship.user_id == user_id)
-        friend_ids = db.execute(stmt).scalars().all()
+        friend_ids = self.session.execute(stmt).scalars().all()
 
         # Always include the user's own ID
         friend_ids.append(user_id)
@@ -157,7 +155,7 @@ class Leaderboard:
 
         # Query leaderboard entries for the 
         stmt = select(LeaderboardEntry).where(LeaderboardEntry.user_id.in_(friend_ids))
-        entries = db.execute(stmt).scalars().all()
+        entries = self.session.execute(stmt).scalars().all()
 
         #  Sort by score descending
         entries.sort(key=lambda e: e.score, reverse=True)
@@ -190,3 +188,8 @@ class LeaderboardEntrySchema(BaseModel):
     average_daily_guesses: int
     average_daily_time: timedelta
     longest_survival_streak: int
+
+
+def get_leaderboard_repository() -> Leaderboard:
+    db = get_db()
+    return Leaderboard(session=db)
