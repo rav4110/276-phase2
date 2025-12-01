@@ -2,13 +2,12 @@
 
 from unittest.mock import patch
 
-from phase2.survival import STARTING_LIVES, SurvivalStats, survival_mode
-
+from game.survival import STARTING_LIVES, SurvivalStats, survival_mode
 from phase2.round import RoundStats
 
 
 class TestSurvivalMode:
-    @patch("phase2.survival.get_random_country")
+    @patch("game.survival.get_random_country")
     def test_survival_mode(self, mock_get_random):
         """Test that survival_mode initializes correctly"""
         mock_country = mock_get_random.return_value

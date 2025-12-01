@@ -1,7 +1,7 @@
 import logging
 
-from phase2.country import Country, get_country, get_random_country
-from phase2.daily import compare_countries
+from game.daily import compare_countries
+from phase2.country import get_country, get_random_country
 from phase2.round import GuessFeedback, RoundStats
 from phase2.statistics import get_statistics_repository
 
@@ -160,7 +160,7 @@ async def end_survival_game(round_stats: RoundStats, survival_stats: SurvivalSta
     logger.info("Round stats:")
     logger.info(vars(round_stats))
     
-    # TODO (milestone 2): Get the user id of the currently playing user, if there is one
+    #  Get the user id of the currently playing user, if there is one
     round_stats.user_id = 0
     
     # Add round to the rounds database with survival streak
